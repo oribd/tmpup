@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+file_is_symlink() {
+    [[ -L $FILE ]] && return 0 || return 1
+}
+
+mkdir_if_needed() {
+    [[ -d "${work_dir}/.backup" ]] || mkdir -v "${work_dir}/.backup"
+}
+
+backup_file() {
+    if [ ! -z $REASON ]; then
+        cp -pv $FILE "${work_dir}/.backup/${BASENAME}.$(date '+%F_%T')-${REASON}"
+    else
+        cp -pv $FILE "${work_dir}/.backup/${BASENAME}.$(date '+%F_%T')"
+    fi
+}
+
+copy_no_reason() {
+    local yes_or_no=
+
+    echo "No reason for backup was supplied."
+    while true; do
+
+        read -r -p "Are you sure you want to backup without specifying a reason? yes/no: " yes_or_no
+
+        case "$yes_or_no" in
+
+            yes) return 0;; # continue running the script
+
+            no)
+                return 1;;
+
+            *)
+                echo "Invalid option.";;
+        esac
+    done
+}
+
+check_input() {
+    if [ -z $1 ]; then
+        echo "No file specified."
+        echo "Usage: bckcp FILE [REASON]"
+        exit
+    fi
+}
+
+main() {
+    check_input $1
+
+    FILE=$(readlink -f $1)
+    BASENAME=$(basename $1)
+    REASON=$2
+    work_dir=$(dirname $FILE)
+
+    if file_is_symlink; then
+        echo "File is a symlink, I don't backup symlinks."
+        exit 1
+    else
+        [ -z $REASON ] && echo "Warning: No reason for backup was supplied."
+        mkdir_if_needed
+        backup_file
+        exit 0
+    fi
+}
+main "$@"
